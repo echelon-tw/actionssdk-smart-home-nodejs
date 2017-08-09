@@ -39,7 +39,6 @@ app.use(session({
   cookie: {secure: false}
 }));
 const deviceConnections = {};
-const requestSyncEndpoint = 'https://homegraph.googleapis.com/v1/devices:requestSync?key=';
 
 /**
  * auth method
@@ -127,8 +126,6 @@ app.post('/smart-home-api/register-device', function (request, response) {
     return;
   }
 
-  app.requestSync(authToken, uid);
-
   // otherwise, all good!
   response.status(200)
     .set({
@@ -167,8 +164,6 @@ app.post('/smart-home-api/remove-device', function (request, response) {
     }).json({error: "failed to remove device"});
     return;
   }
-
-  app.requestSync(authToken, uid);
 
   // otherwise, all good!
   response.status(200)
@@ -217,8 +212,7 @@ app.post('/smart-home-api/exec', function (request, response) {
   }
 
   if (request.body.nameChanged) {
-      // console.log("calling request sync from exec to update name");
-      app.requestSync(authToken, uid);
+       console.log("need to update name by relinking account");
   }
 
   // otherwise, all good!
@@ -398,34 +392,19 @@ app.changeState = function (command) {
   });
 };
 
-app.requestSync = function (authToken, uid) {
-  //REQUEST_SYNC
-
-  const apiKey = config.smartHomeProviderApiKey;
-  const options = {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + authToken
-    }
-  };
-  optBody = {
-    'agentUserId': uid
-  };
-
-  options.body = JSON.stringify(optBody);
-
-  fetch(requestSyncEndpoint + apiKey, options).
-    then(function(res) {
-      console.log("request-sync response", res.status);
-    });
-};
-
 const appPort = process.env.PORT || config.devPortSmartHome;
 
 const server = app.listen(appPort, function () {
   const host = server.address().address;
   const port = server.address().port;
+  // Check that the API key was changed from the default
+  if (config.smartHomeProviderApiKey === '<API_KEY>') {
+    console.warn('You need to set the API key in config-provider.\n' +
+      'Visit the Google Cloud Console to generate an API key for your project.\n' +
+      'https://console.cloud.google.com\n' +
+      'Exiting...');
+    process.exit();
+  }
   console.log('Smart Home Cloud and App listening at %s:%s', host, port);
 
   if (config.isLocal) {
